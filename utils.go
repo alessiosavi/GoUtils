@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"log"
+	"encoding/json"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus" // Pretty log library, not the fastest (zerolog/zap)
 	"github.com/valyala/gozstd"
 )
 
@@ -24,7 +25,7 @@ func Random(min int, max int) int {
 func IsDirectory(path *string) bool {
 	fileInfo, err := os.Stat(*path)
 	if err != nil {
-		log.Println("Path ", path, " IS NOT A DIRECTORY :/")
+		log.Error("IsDirectory | Some error occours! | Path ", path, " IS NOT A DIRECTORY :/")
 		return false
 	}
 	return fileInfo.IsDir()
@@ -36,23 +37,76 @@ func FreeSystemMemory(gcSleep *int) {
 	var m runtime.MemStats
 	var g debug.GCStats
 	for i := 0; i > -1; {
-		log.Println(printMemUsage(&m, &g))
+		log.Info(printMemUsage(&m, &g))
 		debug.FreeOSMemory()
-		log.Println("--- Memory freed! ---")
-		log.Println(printMemUsage(&m, &g))
+		log.Info("--- Memory freed! ---")
+		log.Info(printMemUsage(&m, &g))
 		time.Sleep(time.Duration(*gcSleep) * time.Minute)
 	}
 }
 
-// PrintMemUsage outputs the current, total and OS memory being used. As well as the number
-// of garage collection cycles completed.
+//Monitor is the data structure for store the metrics data
+type Monitor struct {
+	Alloc,
+	TotalAlloc,
+	Sys,
+	Mallocs,
+	Frees,
+	LiveObjects,
+	PauseTotalNs,
+	MCacheInuse uint64
+	GCCPUFraction float64
+	NumGC         uint32
+	NumGoroutine  int
+}
+
+// ExportMetrics  is in charge to retrive the information related to the resources used
+func ExportMetrics() []byte {
+	var m Monitor
+	var rtm runtime.MemStats
+
+	// Read full mem stats
+	runtime.ReadMemStats(&rtm)
+
+	// Number of goroutines
+	m.NumGoroutine = runtime.NumGoroutine()
+
+	// Misc memory stats
+	m.Alloc = rtm.Alloc
+	m.TotalAlloc = rtm.TotalAlloc
+	m.Sys = rtm.Sys
+	m.Mallocs = rtm.Mallocs
+	m.Frees = rtm.Frees
+
+	// Live objects = Mallocs - Frees
+	m.LiveObjects = m.Mallocs - m.Frees
+
+	// GC Stats
+	m.PauseTotalNs = rtm.PauseTotalNs
+	m.MCacheInuse = rtm.MCacheInuse
+	m.NumGC = rtm.NumGC
+	m.GCCPUFraction = rtm.GCCPUFraction
+
+	// Just encode to json and print
+	b, _ := json.Marshal(m)
+	return b
+
+}
+
+/* func ExportMetrics() {
+	memstatsFunc := expvar.Get("memstats").(expvar.Func)
+	memstats := memstatsFunc().(runtime.MemStats)
+	log.Debug(memstats)
+}
+*/
+// printMemUsage outputs the current, total and OS memory being used.
+// As well as the number of garage collection cycles completed.
 func printMemUsage(m *runtime.MemStats, g *debug.GCStats) string {
 	runtime.ReadMemStats(m)
 	debug.ReadGCStats(g)
 	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
-	tmp := "Alloc = " + bToMb(m.Alloc) + "MiB\tTotalAlloc = " + bToMb(m.TotalAlloc) +
-		"MiB\tSys = " + bToMb(m.Sys) + "MiB\tNumGC = " + strconv.FormatInt(int64(m.NumGC), 10) + "MiB\tPausGCTotal = " + g.PauseTotal.String()
-	return tmp
+	return "Alloc = " + bToMb(m.Alloc) + "MiB\tTotalAlloc = " + bToMb(m.TotalAlloc) +
+		"MiB\tSys = " + bToMb(m.Sys) + "MiB\tNumGC = " + strconv.FormatInt(int64(m.NumGC), 10) + "\tPausGCTotal = " + g.PauseTotal.String()
 }
 
 // lazy
@@ -66,7 +120,7 @@ func ReadFile(filename string, lines int) []byte {
 	cmd := exec.Command("/bin/sh", "-c", app)
 	stdout, err := cmd.Output()
 	if len(stdout) == 0 || err != nil { // Empty file or error
-		log.Println("ERROR, empty file")
+		log.Error("ReadFile | ERROR, empty file | ", filename)
 		return nil
 	}
 	return gozstd.Compress(nil, stdout)
@@ -74,51 +128,54 @@ func ReadFile(filename string, lines int) []byte {
 
 // FilterFromFile return the text that containt "toFilter" from the file "filename" in a zipped format
 func FilterFromFile(filename string, maxLinesToSearch int, toFilter string, reverse bool) []byte {
-	//log.Println("FilterFromFile | START")
+	log.Trace("FilterFromFile | START")
+	var reverse_on string
+	reverse_on = ""
 	toFilter = strings.Replace(toFilter, "\"", "\\\"", -1) // Replace the ' " ' in a "grep compliant" format
 	if reverse == true {                                   // if the reverse enable add -v for the reverse search
-		toFilter += " -v"
+		reverse_on = " -v"
 	}
-	app := "tail -n " + strconv.Itoa(maxLinesToSearch) + "  " + filename + "|egrep -i \"" + toFilter + "\""
+	app := "tail -n " + strconv.Itoa(maxLinesToSearch) + "  " + filename + "|egrep -i \"" + toFilter + "\"" + reverse_on
 	cmd := exec.Command("/bin/sh", "-c", app)
 	stdout, err := cmd.Output()
 	if err != nil { // No file found
-		log.Println("No text found [", toFilter, "] in file [", filename, "]")
-		log.Println("FilterFromFile | STOP !")
+		log.Warn("FilterFromFile | No text found [", toFilter, "] in file [", filename, "]")
 		return gozstd.Compress(nil, []byte("No text found :("))
 	}
-	//	log.Println("FilterFromFile | STOP !")	
+	log.Trace("FilterFromFile | STOP | Ok, compressing the data ...")
 	return gozstd.Compress(nil, stdout)
 }
 
 // ListFiles return the list of files in every subdirectory given in input.
-// stdout return a new line at the end, so,after the split, the last element (-1) is discarded.
+// stdout return a new line at the end, so, after the split, the last element (-1) is discarded.
+// TODO: Verify WTF i've thinked when i've discarded the last element
 func ListFiles(dirName string) []string {
-	log.Println("ListFiles | START !")
+	log.Trace("ListFiles | START")
 	app := "find -L " + dirName + " -type f" // Extract only the name of the file
 	cmd := exec.Command("/bin/sh", "-c", app)
 	stdout, err := cmd.Output()
 	if err != nil { // Nothing in folder ?
-		log.Println(err.Error() + ": " + string(stdout))
-		log.Println("ListFiles | STOP !")
+		log.Error(err.Error() + ": " + string(stdout))
 		return nil
 	}
 	tmp := strings.Split(string(stdout), "\n")
-	log.Println("ListFiles | STOP !")
+	log.Info("ListFiles | STOP")
 	return tmp[:len(tmp)-1]
 }
 
 // GetFileModification return the last modification time of the file in input in a UNIX time format
 func GetFileModification(filepath string) int64 {
 	f, err := os.Open(filepath)
-	defer f.Close()
 	if err != nil {
-		log.Println("No file :/", filepath)
+		log.Error("No file :/", filepath)
+		//f.Close()
 		return -1
 	}
+	defer f.Close()
 	statinfo, err := f.Stat()
 	if err != nil {
-		log.Println("Error getting stats of file -> :/", filepath)
+		log.Error("Error getting stats of file -> :/", filepath)
+		//f.Close()
 		return -1
 	}
 	return statinfo.ModTime().Unix()
@@ -131,12 +188,12 @@ func CountLine(filename string) int {
 	cmd := exec.Command("/bin/sh", "-c", app)
 	stdout, err := cmd.Output()
 	if err != nil { // File deleted ?
-		log.Println(err.Error() + ": " + string(stdout))
+		log.Error(err.Error() + ": " + string(stdout))
 		return -1
 	}
 	n, err := strconv.Atoi(strings.Split(string(stdout), " ")[0]) //Extract files number
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return -1
 	}
 	return n
