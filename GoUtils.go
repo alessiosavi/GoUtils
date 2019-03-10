@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pierrec/lz4"
 	log "github.com/sirupsen/logrus" // Pretty log library, not the fastest (zerolog/zap)
 	"github.com/valyala/gozstd"
 )
@@ -22,8 +23,8 @@ func Random(min int, max int) int {
 }
 
 // IsDirectory Verify if the path provided is a directory
-func IsDirectory(path *string) bool {
-	fileInfo, err := os.Stat(*path)
+func IsDirectory(path string) bool {
+	fileInfo, err := os.Stat(path)
 	if err != nil {
 		log.Error("IsDirectory | Some error occours! | Path ", path, " IS NOT A DIRECTORY :/")
 		return false
@@ -197,4 +198,30 @@ func CountLine(filename string) int {
 		return -1
 	}
 	return n
+}
+
+func lz4CompressData(fileContent string) ([]byte, int) {
+
+	toCompress := []byte(fileContent)
+	compressed := make([]byte, len(toCompress))
+
+	//compress
+	var ht [1 << 16]int
+	lenght, err := lz4.CompressBlock(toCompress, compressed, ht[:])
+	if err != nil {
+		panic(err)
+	}
+	log.Warning("compressed Data:", string(compressed[:lenght]))
+	return compressed, lenght
+}
+
+func lz4DecompressData(compressedData []byte, l int) {
+
+	//decompress
+	decompressed := make([]byte, len(compressedData)*3)
+	lenght, err := lz4.UncompressBlock(compressedData[:l], decompressed)
+	if err != nil {
+		panic(err)
+	}
+	log.Warning("\ndecompressed Data:", string(decompressed[:lenght]))
 }
