@@ -2,7 +2,7 @@ language: go
 sudo: false
 
 go:
-- 1.11.4
+- 1.12
 
 branches:
   only:
@@ -10,8 +10,10 @@ branches:
 
 
 before_install:
-  - go get github.com/valyala/gozstd
-  
+  - go get -v -u github.com/valyala/gozstd
+  - go get -v -u github.com/sirupsen/logrus
+  - go get -v -u github.com/onrik/logrus/filename
+  - go get -v -u github.com/pierrec/lz4
 install: true
 
 script:
