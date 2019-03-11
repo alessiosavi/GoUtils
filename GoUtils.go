@@ -264,3 +264,13 @@ func lz4DecompressData(compressedData []byte, l int) {
 	}
 	log.Warning("\ndecompressed Data:", string(decompressed[:lenght]))
 }
+
+//IsFile verify if a give filepath is a directory
+func IsFile(path string) bool {
+	fi, err := os.Stat(path)
+	if err != nil {
+		log.Fatal("isDir | Fatal on path ", path, " | ERR: ", err)
+		return false
+	}
+	return !fi.Mode().IsDir()
+}
