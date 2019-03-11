@@ -152,7 +152,7 @@ func FilterFromFile(filename string, maxLinesToSearch int, toFilter string, reve
 // TODO: Verify WTF i've thinked when i've discarded the last element
 func ListFiles(dirName string) []string {
 	log.Trace("ListFiles | START")
-	app := "find -L " + dirName + " -type f" // Extract only the name of the file
+	app := "find -L -O3 " + dirName + " -type f" // Extract only the name of the file
 	cmd := exec.Command("/bin/sh", "-c", app)
 	stdout, err := cmd.Output()
 	if err != nil { // Nothing in folder ?
@@ -198,6 +198,45 @@ func CountLine(filename string) int {
 		return -1
 	}
 	return n
+}
+
+// ValidateInjection provide commons methods for validate a given payload
+func ValidateInjection(payload string, mustContain []string) bool {
+
+	if len(payload) <= 6 {
+		log.Debug("ValidateInjection | payload empty")
+		return false
+	}
+	// Verify if the payload contains one of the list of string that we assume that have to have
+	if mustContain != nil {
+		log.Debug("ValidateInjection | verify word that must be contained")
+		var checkContains bool
+		checkContains = false
+		for i := 0; i < len(mustContain); i++ {
+			if strings.Contains(payload, mustContain[i]) {
+				log.Debug("ValidateInjection | Payload [", payload, "] contains [", mustContain[i], "]")
+				// Ok, check satisfied, set a flag and exit the iteration
+				checkContains = true
+				break
+			}
+		}
+		// If the flag is not true, no party
+		if !checkContains {
+			log.Error("ValidateInjection | Payload [", payload, "] does not contains any of our validation input [", mustContain, "]")
+			return false
+		}
+	}
+	evilword := [...]string{"../", "..", "/./", "/etc/", "/bin/", "/usr/", "/var/"}
+
+	log.Debug("ValidateInjection | Trying to find evil word ...")
+	// Verify if the payload contains one of the evilword
+	for i := 0; i < len(evilword); i++ {
+		if strings.Contains(payload, evilword[i]) {
+			log.Error("ValidateInjection | EvilWord [", payload, "] -- [", evilword[i], "]")
+			return false
+		}
+	}
+	return true
 }
 
 func lz4CompressData(fileContent string) ([]byte, int) {
