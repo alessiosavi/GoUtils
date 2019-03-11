@@ -272,5 +272,6 @@ func IsFile(path string) bool {
 		log.Fatal("isDir | Fatal on path ", path, " | ERR: ", err)
 		return false
 	}
+	// fi.IsDir()
 	return !fi.Mode().IsDir()
 }
