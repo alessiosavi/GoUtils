@@ -130,13 +130,12 @@ func ReadFile(filename string, lines int) []byte {
 // FilterFromFile return the text that containt "toFilter" from the file "filename" in a zipped format
 func FilterFromFile(filename string, maxLinesToSearch int, toFilter string, reverse bool) []byte {
 	log.Trace("FilterFromFile | START")
-	var reverse_on string
-	reverse_on = ""
+	reverseOn := ""
 	toFilter = strings.Replace(toFilter, "\"", "\\\"", -1) // Replace the ' " ' in a "grep compliant" format
-	if reverse == true {                                   // if the reverse enable add -v for the reverse search
-		reverse_on = " -v"
+	if reverse {                                           // if the reverse enable add -v for the reverse search
+		reverseOn = " -v"
 	}
-	app := "tail -n " + strconv.Itoa(maxLinesToSearch) + "  " + filename + "|egrep -i \"" + toFilter + "\"" + reverse_on
+	app := "tail -n " + strconv.Itoa(maxLinesToSearch) + "  " + filename + "|egrep -i \"" + toFilter + "\"" + reverseOn
 	cmd := exec.Command("/bin/sh", "-c", app)
 	stdout, err := cmd.Output()
 	if err != nil { // No file found
@@ -210,8 +209,8 @@ func ValidateInjection(payload string, mustContain []string) bool {
 	// Verify if the payload contains one of the list of string that we assume that have to have
 	if mustContain != nil {
 		log.Debug("ValidateInjection | verify word that must be contained")
-		var checkContains bool
-		checkContains = false
+
+		checkContains := false
 		for i := 0; i < len(mustContain); i++ {
 			if strings.Contains(payload, mustContain[i]) {
 				log.Debug("ValidateInjection | Payload [", payload, "] contains [", mustContain[i], "]")
@@ -228,7 +227,7 @@ func ValidateInjection(payload string, mustContain []string) bool {
 	}
 	evilword := [...]string{"../", "..", "/./", "/etc/", "/bin/", "/usr/", "/var/"}
 
-	log.Debug("ValidateInjection | Trying to find evil word ...")
+	log.Debug("ValidateInjection | Trying to find evil word [", payload, "] ...")
 	// Verify if the payload contains one of the evilword
 	for i := 0; i < len(evilword); i++ {
 		if strings.Contains(payload, evilword[i]) {
@@ -240,7 +239,6 @@ func ValidateInjection(payload string, mustContain []string) bool {
 }
 
 func lz4CompressData(fileContent string) ([]byte, int) {
-
 	toCompress := []byte(fileContent)
 	compressed := make([]byte, len(toCompress))
 
@@ -255,7 +253,6 @@ func lz4CompressData(fileContent string) ([]byte, int) {
 }
 
 func lz4DecompressData(compressedData []byte, l int) {
-
 	//decompress
 	decompressed := make([]byte, len(compressedData)*3)
 	lenght, err := lz4.UncompressBlock(compressedData[:l], decompressed)
