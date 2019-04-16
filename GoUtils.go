@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"bufio"
 	"encoding/json"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -202,7 +204,7 @@ func CountLine(filename string) int {
 // ValidateInjection provide commons methods for validate a given payload
 func ValidateInjection(payload string, mustContain []string) bool {
 
-	if len(payload) <= 6 {
+	if len(payload) <= 4 {
 		log.Debug("ValidateInjection | payload empty")
 		return false
 	}
@@ -271,4 +273,44 @@ func IsFile(path string) bool {
 	}
 	// fi.IsDir()
 	return !fi.Mode().IsDir()
+}
+
+/* Remove a given element from a string*/
+func RemoveFromString(s []byte, i int) []byte {
+	s[len(s)-1], s[i] = s[i], s[len(s)-1]
+	return s[:len(s)-1]
+}
+
+func ReadAllFile(filePath string) string {
+	// Open a file.
+	var file *os.File // File to read
+	var err error
+	var reader *bufio.Reader
+	var content []byte
+	//var result string
+	file, err = os.Open(filePath)
+	if err != nil {
+		log.Error("ReadAllFile | Error opening file [", filePath, "]")
+		return ""
+	}
+	defer file.Close()
+
+	// Use bufio.NewReader to get a Reader.
+	// ... Then use ioutil.ReadAll to read the entire content.
+	reader = bufio.NewReader(file)
+	content, err = ioutil.ReadAll(reader)
+	if err != nil {
+		log.Error("ReadAllFile | Error reading file [", filePath, "]")
+		return ""
+	}
+	return string(content)
+}
+
+func IsASCII(s string) bool {
+	for _, c := range s {
+		if c > 127 {
+			return false
+		}
+	}
+	return true
 }
