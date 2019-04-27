@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -281,6 +282,31 @@ func RemoveFromString(s []byte, i int) []byte {
 	return s[:len(s)-1]
 }
 
+func ReadAllFileInArray(filePath string) []string {
+	// Open a file.
+	var file *os.File // File to read
+	var err error
+	var linesList []string
+	//var result string
+	log.Trace("ReadAllFile | START")
+	file, err = os.Open(filePath)
+	if err != nil {
+		log.Error("ReadAllFile | Error opening file [", filePath, "]")
+		return nil
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		// Clean the string and remove the double space
+		linesList = append(linesList, strings.Replace(strings.TrimSpace(scanner.Text()), "  ", "", -1))
+	}
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+	return linesList
+}
+
 func ReadAllFile(filePath string) string {
 	// Open a file.
 	var file *os.File // File to read
@@ -288,6 +314,7 @@ func ReadAllFile(filePath string) string {
 	var reader *bufio.Reader
 	var content []byte
 	//var result string
+	log.Trace("ReadAllFile | START")
 	file, err = os.Open(filePath)
 	if err != nil {
 		log.Error("ReadAllFile | Error opening file [", filePath, "]")
@@ -303,9 +330,11 @@ func ReadAllFile(filePath string) string {
 		log.Error("ReadAllFile | Error reading file [", filePath, "]")
 		return ""
 	}
+	log.Trace("ReadAllFile | STOP")
 	return string(content)
 }
 
+// IsASCII is delegated to verify if a given string is ASCII compliant
 func IsASCII(s string) bool {
 	for _, c := range s {
 		if c > 127 {
@@ -313,4 +342,109 @@ func IsASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+//RemoveElement delete the element of the indexes contained in j of the data in input
+func RemoveElement(data []string, j []int) []string {
+	for i := 0; i < len(j); i++ {
+		data[j[i]] = data[len(data)-1] // Copy last element to index i.
+		data[len(data)-1] = ""         // Erase last element (write zero value).
+		data = data[:len(data)-1]      // Truncate slice.
+	}
+	return data
+}
+
+// SetDebugLevel return the LogRus object by the given string
+func SetDebugLevel(level string) log.Level {
+	if strings.Compare(strings.ToLower(level), "debug") == 0 {
+		return log.DebugLevel
+	} else if strings.Compare(strings.ToLower(level), "trace") == 0 {
+		return log.TraceLevel
+	} else if strings.Compare(strings.ToLower(level), "info") == 0 {
+		return log.InfoLevel
+	} else if strings.Compare(strings.ToLower(level), "error") == 0 {
+		return log.ErrorLevel
+	} else if strings.Compare(strings.ToLower(level), "fatal") == 0 {
+		return log.FatalLevel
+	} else if strings.Compare(strings.ToLower(level), "panic") == 0 {
+		return log.PanicLevel
+	} else if strings.Contains(strings.ToLower(level), "warn") {
+		return log.WarnLevel
+	}
+	return log.DebugLevel
+}
+
+// ByteCountSI convert the byte in input to MB/KB/TB ecc
+func ByteCountSI(b int64) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB",
+		float64(b)/float64(div), "kMGTPE"[exp])
+}
+
+// ByteCountIEC convert the byte in input to MB/KB/TB ecc
+func ByteCountIEC(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB",
+		float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// RetrieveLines return the number of lines in the given string
+func RetrieveLines(fileContet string) int {
+	scanner := bufio.NewScanner(strings.NewReader(fileContet)) // Create a scanner for iterate the string
+	counter := 0
+	for scanner.Scan() {
+		counter++
+	}
+	return counter
+}
+
+// ParseDate2 is an hardcoded parser for date like 31/01/2019 13:29:37,932. He reurn the nanoseceond since Unix epoch
+func ParseDate2(strdate string) int64 {
+	day, _ := strconv.Atoi(strdate[:2])
+	month, _ := strconv.Atoi(strdate[3:5])
+	year, _ := strconv.Atoi(strdate[6:10])
+	hour, _ := strconv.Atoi(strdate[11:13])
+	minute, _ := strconv.Atoi(strdate[14:16])
+	second, _ := strconv.Atoi(strdate[17:19])
+	milli, _ := strconv.Atoi(strdate[20:23])
+	return time.Date(year, time.Month(month), day, hour, minute, second, milli*1000000, time.UTC).UnixNano() / 1000000
+}
+
+func removeWhiteSpace(data []string) []string {
+	var toDelete []int
+	// Iterate the string in the list
+	for i := 0; i < len(data); i++ {
+		// Iterate the char in the string
+		for _, c := range data[i] {
+			if c == 32 { // if whitespace
+				toDelete = append(toDelete, i)
+			}
+		}
+	}
+	return RemoveElement(data, toDelete)
+}
+
+// Join is a quite efficient string concatenator
+func Join(strs ...string) string {
+	var sb strings.Builder
+	for _, str := range strs {
+		sb.WriteString(str)
+	}
+	return sb.String()
 }
