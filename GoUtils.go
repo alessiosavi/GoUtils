@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"runtime"
 	"runtime/debug"
+	"runtime/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -42,9 +43,9 @@ func FreeSystemMemory(gcSleep *int) {
 	var g debug.GCStats
 	for i := 0; i > -1; {
 		log.Info(printMemUsage(&m, &g))
-		debug.FreeOSMemory()
+		/* debug.FreeOSMemory()
 		log.Info("--- Memory freed! ---")
-		log.Info(printMemUsage(&m, &g))
+		log.Info(printMemUsage(&m, &g)) */
 		time.Sleep(time.Duration(*gcSleep) * time.Minute)
 	}
 }
@@ -241,7 +242,7 @@ func ValidateInjection(payload string, mustContain []string) bool {
 	return true
 }
 
-func lz4CompressData(fileContent string) ([]byte, int) {
+func Lz4CompressData(fileContent string) ([]byte, int) {
 	toCompress := []byte(fileContent)
 	compressed := make([]byte, len(toCompress))
 
@@ -255,7 +256,7 @@ func lz4CompressData(fileContent string) ([]byte, int) {
 	return compressed, lenght
 }
 
-func lz4DecompressData(compressedData []byte, l int) {
+func Lz4DecompressData(compressedData []byte, l int) {
 	//decompress
 	decompressed := make([]byte, len(compressedData)*3)
 	lenght, err := lz4.UncompressBlock(compressedData[:l], decompressed)
@@ -426,7 +427,7 @@ func ParseDate2(strdate string) int64 {
 	return time.Date(year, time.Month(month), day, hour, minute, second, milli*1000000, time.UTC).UnixNano() / 1000000
 }
 
-func removeWhiteSpace(data []string) []string {
+func RemoveWhiteSpace(data []string) []string {
 	var toDelete []int
 	// Iterate the string in the list
 	for i := 0; i < len(data); i++ {
@@ -447,4 +448,74 @@ func Join(strs ...string) string {
 		sb.WriteString(str)
 	}
 	return sb.String()
+}
+
+// JoinArray concatenate every data in the array and return the string content
+func JoinArray(data []string) string {
+	var sb strings.Builder
+	for i := 0; i < len(data); i++ {
+		sb.WriteString(data[i] + " ")
+	}
+	return sb.String()
+
+}
+
+// VerifyIfPresent Verify if a given string is present in the list
+func VerifyIfPresent(content string, entryList []string) bool {
+	for i := 0; i < len(entryList); i++ {
+		if strings.Contains(content, entryList[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+// StartCPUProfiler Save the cpu profile information into the given file
+// NOTE: Remember to defer pprof.StopCPUProfile() after the function
+func StartCPUProfiler(file *os.File) {
+	// Start the cpu profiler
+	if err := pprof.StartCPUProfile(file); err != nil {
+		log.Fatal("could not start CPU profile: ", err)
+	}
+}
+
+//ExtractString is delegated to filter the content of the given data delimited by 'first' and 'last' string
+func ExtractString(data *string, first, last string) string {
+	// Find the first instance of 'start' in the give string data
+	startHeder := strings.Index(*data, first)
+	// Found !
+	if startHeder != -1 {
+		// Remove the first word
+		startHeder += len(first)
+		// Check the first occurrence of 'last' that delimit the string to return
+		endHeader := strings.Index((*data)[startHeder:], last)
+		// Ok, seems good, return the content of the string delimited by 'first' and 'last'
+		if endHeader != -1 {
+			return (*data)[startHeder : startHeder+endHeader]
+		}
+	}
+	return ""
+}
+
+// recognizeFormat is delegated to valutate the extension and return the properly Mimetype by a given format type
+// reurn: (Mimetype http compliant,Content-Disposition header value)
+func RecognizeFormat(input string) (string, string) {
+	// Find the last occurrence of the dot
+	// extract only the extension of the file by slicing the string
+	var mimeType string
+	var contentDisposition string
+	contentDisposition = `inline; filename="` + input + `"`
+	switch input[strings.LastIndex(input, ".")+1:] {
+	case "doc":
+		mimeType = "application/msword"
+	case "docx":
+		mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case "pdf":
+		mimeType = "application/pdf"
+	default:
+		mimeType = "application/octet-stream"
+		contentDisposition = `attachment; filename="` + input + `"`
+	}
+
+	return mimeType, contentDisposition
 }
