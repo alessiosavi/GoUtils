@@ -427,7 +427,7 @@ func ParseDate2(strdate string) int64 {
 	return time.Date(year, time.Month(month), day, hour, minute, second, milli*1000000, time.UTC).UnixNano() / 1000000
 }
 
-func RemoveWhiteSpace(data []string) []string {
+func RemoveWhiteSpaceArray(data []string) []string {
 	var toDelete []int
 	// Iterate the string in the list
 	for i := 0; i < len(data); i++ {
@@ -502,9 +502,10 @@ func ExtractString(data *string, first, last string) string {
 func RecognizeFormat(input string) (string, string) {
 	// Find the last occurrence of the dot
 	// extract only the extension of the file by slicing the string
-	var mimeType string
 	var contentDisposition string
-	contentDisposition = `inline; filename="` + input + `"`
+	var mimeType string
+
+	contentDisposition = `attachment; filename="` + input + `"`
 	switch input[strings.LastIndex(input, ".")+1:] {
 	case "doc":
 		mimeType = "application/msword"
@@ -512,10 +513,21 @@ func RecognizeFormat(input string) (string, string) {
 		mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 	case "pdf":
 		mimeType = "application/pdf"
+		contentDisposition = `inline; filename="` + input + `"`
 	default:
 		mimeType = "application/octet-stream"
-		contentDisposition = `attachment; filename="` + input + `"`
 	}
-
 	return mimeType, contentDisposition
+}
+
+func RemoveWhiteSpaceString(str string) string {
+	var b strings.Builder
+	b.Grow(len(str))
+	for i, ch := range str {
+		//fmt.Println("I: ", i)
+		if !(str[i] == 32 && (i+1 < len(str) && str[i+1] == 32)) {
+			b.WriteRune(ch)
+		}
+	}
+	return b.String()
 }
