@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
@@ -109,7 +110,7 @@ func ExportMetrics() []byte {
 func printMemUsage(m *runtime.MemStats, g *debug.GCStats) string {
 	runtime.ReadMemStats(m)
 	debug.ReadGCStats(g)
-	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	// For info eon each, see: https://golang.org/pkg/runtime/#MemStats
 	return "Alloc = " + bToMb(m.Alloc) + "MiB\tTotalAlloc = " + bToMb(m.TotalAlloc) +
 		"MiB\tSys = " + bToMb(m.Sys) + "MiB\tNumGC = " + strconv.FormatInt(int64(m.NumGC), 10) + "\tPausGCTotal = " + g.PauseTotal.String()
 }
@@ -129,6 +130,32 @@ func ReadFile(filename string, lines int) []byte {
 		return nil
 	}
 	return gozstd.Compress(nil, stdout)
+}
+
+// ReadFilePath is delegated to filter every (sub)file path from a given directory
+func ReadFilePath(path string) []string {
+	if !ValidateInjection(path, nil) {
+		log.Error("readFilePath | Path is not valid :/ ", path)
+		return nil
+	}
+	fileList := []string{}
+	// Read all the file recursivly
+	log.Debug("readFilePath | Reading file in ", path)
+	err := filepath.Walk(path, func(file string, f os.FileInfo, err error) error {
+		if IsFile(file) {
+			log.Trace("Adding file -> ", file)
+			fileList = append(fileList, file)
+		} else {
+			log.Debug("readFilePath | Directory found, skipping! -> ", file)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Error("readFilePath | Some trouble | Path: ", path, " | ERR: ", err)
+		return nil
+	}
+	log.Warn("readFilePath | [", len(fileList), "] File readed: ", fileList)
+	return fileList
 }
 
 // FilterFromFile return the text that containt "toFilter" from the file "filename" in a zipped format
@@ -505,17 +532,20 @@ func RecognizeFormat(input string) (string, string) {
 	var contentDisposition string
 	var mimeType string
 
-	contentDisposition = `attachment; filename="` + input + `"`
+	contentDisposition = `inline; filename="` + input + `"`
 	switch input[strings.LastIndex(input, ".")+1:] {
 	case "doc":
 		mimeType = "application/msword"
+		//mimeType = "application/octet-stream"
 	case "docx":
 		mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+		//mimeType = "application/octet-stream"
 	case "pdf":
 		mimeType = "application/pdf"
-		contentDisposition = `inline; filename="` + input + `"`
+		//contentDisposition = `inline; filename="` + input + `"`
 	default:
 		mimeType = "application/octet-stream"
+		contentDisposition = `inline; filename="` + input + `"`
 	}
 	return mimeType, contentDisposition
 }
