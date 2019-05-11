@@ -1,5 +1,11 @@
 package utils
 
+// #cgo CFLAGS: -g -Wall
+// #include <stdio.h>
+// #include <stdlib.h>
+// #include <string.h>
+// #include "cutils.h"
+import "C"
 import (
 	"bufio"
 	"encoding/json"
@@ -15,11 +21,44 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/pierrec/lz4"
 	log "github.com/sirupsen/logrus" // Pretty log library, not the fastest (zerolog/zap)
 	"github.com/valyala/gozstd"
 )
+
+/* ==== C wrappers ==== */
+
+// C methods for speedup the code
+// GetFileSizeC wrapper method for retrieve byte lenght of a file
+func GetFileSizeC(filename string) int64 {
+	// Cast a string to a 'C string'
+	fname := C.CString(filename)
+	defer C.free(unsafe.Pointer(fname))
+	// get the file size of the file
+	size := C.get_file_size(fname)
+	return int64(size)
+}
+
+// ReadFileContentC wrapper method for retrieve content by a file
+func ReadFileContentC(filename string) string {
+
+	// Cast a string to a 'C string'
+	fname := C.CString(filename)
+	// recognize the size of the file
+	fsize := GetFileSizeC(filename)
+	// Allocate the string for the result
+	ptr := C.malloc(C.sizeof_char * C.ulong(fsize))
+	defer C.free(unsafe.Pointer(ptr))
+	// Cast the pointer in order to suit the method signature
+	C.read_content_no_alloc(fname, (*C.char)(ptr))
+	// Cast the fsize to int
+	b := C.GoBytes(ptr, C.int(fsize))
+	return string(b)
+}
+
+/* ==== C wrappers ==== */
 
 // Random initalizate a new seed using the UNIX Nano time and return an integer between the 2 input value
 func Random(min int, max int) int {
