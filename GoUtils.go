@@ -58,6 +58,15 @@ func ReadFileContentC(filename string) string {
 	return string(b)
 }
 
+func CompareData(data, to_find string) bool {
+	ret := C.verify_presence_data(C.CString(data), C.CString(to_find))
+	//log.Error("CompareData | Ret: ", ret)
+	if ret == 1 {
+		return true
+	}
+	return false
+}
+
 /* ==== C wrappers ==== */
 
 // Random initalizate a new seed using the UNIX Nano time and return an integer between the 2 input value
@@ -198,14 +207,16 @@ func ReadFilePath(path string) []string {
 }
 
 // FilterFromFile return the text that containt "toFilter" from the file "filename" in a zipped format
-func FilterFromFile(filename string, maxLinesToSearch int, toFilter string, reverse bool) []byte {
+func FilterFromFileCompress(filename string, maxLinesToSearch int, toFilter string, reverse bool) []byte {
 	log.Trace("FilterFromFile | START")
-	reverseOn := ""
+	//
 	toFilter = strings.Replace(toFilter, "\"", "\\\"", -1) // Replace the ' " ' in a "grep compliant" format
-	if reverse {                                           // if the reverse enable add -v for the reverse search
-		reverseOn = " -v"
+
+	app := "tail -n " + strconv.Itoa(maxLinesToSearch) + "  " + filename + "|egrep -i \"" + toFilter + "\""
+	if reverse { // if the reverse enable add -v for the reverse search
+		app += " -v"
 	}
-	app := "tail -n " + strconv.Itoa(maxLinesToSearch) + "  " + filename + "|egrep -i \"" + toFilter + "\"" + reverseOn
+
 	cmd := exec.Command("/bin/sh", "-c", app)
 	stdout, err := cmd.Output()
 	if err != nil { // No file found
@@ -216,28 +227,28 @@ func FilterFromFile(filename string, maxLinesToSearch int, toFilter string, reve
 	return gozstd.Compress(nil, stdout)
 }
 
-// ListFiles return the list of files in every subdirectory given in input.
-// stdout return a new line at the end, so, after the split, the last element (-1) is discarded.
-// TODO: Verify WTF i've thinked when i've discarded the last element
-func ListFiles(dirName string) []string {
-	log.Trace("ListFiles | START")
-	app := "find -L -O3 " + dirName + " -type f" // Extract only the name of the file
-	cmd := exec.Command("/bin/sh", "-c", app)
-	stdout, err := cmd.Output()
-	if err != nil { // Nothing in folder ?
-		log.Error(err.Error() + ": " + string(stdout))
-		return nil
+// FilterFromFile return the text that containt "toFilter" from the file "filename" in a zipped format
+// TODO: Write the method in C using FSEEK instead of line
+func FilterFromFile(filename string, maxLinesToSearch int, toFilter string, reverse bool) string {
+	log.Trace("FilterFromFile | START")
+
+	toFilter = strings.Replace(toFilter, "\"", "\\\"", -1) // Replace the ' " ' in a "grep compliant" format
+
+	app := "tail -n " + strconv.Itoa(maxLinesToSearch) + "  " + filename + "|egrep -i \"" + toFilter + "\""
+	if reverse { // if the reverse enable add -v for the reverse search
+		app += " -v"
 	}
-	tmp := strings.Split(string(stdout), "\n")
-	log.Info("ListFiles | STOP")
-	return tmp[:len(tmp)-1]
+
+	cmd := exec.Command("/bin/sh", "-c", app)
+	stdout, _ := cmd.Output()
+	return string(stdout)
 }
 
 // GetFileModification return the last modification time of the file in input in a UNIX time format
 func GetFileModification(filepath string) int64 {
 	f, err := os.Open(filepath)
 	if err != nil {
-		log.Error("No file :/", filepath)
+		log.Error("No file :/", filepath, " | Err: ", err)
 		//f.Close()
 		return -1
 	}
@@ -336,7 +347,7 @@ func Lz4DecompressData(compressedData []byte, l int) {
 func IsFile(path string) bool {
 	fi, err := os.Stat(path)
 	if err != nil {
-		log.Fatal("isDir | Fatal on path ", path, " | ERR: ", err)
+		log.Error("isDir | Fatal on path ", path, " | ERR: ", err)
 		return false
 	}
 	// fi.IsDir()
