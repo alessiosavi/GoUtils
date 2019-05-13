@@ -66,10 +66,10 @@ int verify_presence_data(const char *data, const char *to_find)
     /* Finding string ... */
     if(strstr(data,to_find)!=NULL)
     {
-      printf("String %s found ..\n",to_find);
+     // printf("String %s found ..\n",to_find);
       return 1;
     }
-    printf("String %s NOT found ..\n",to_find);
+    //printf("String %s NOT found ..\n",to_find);
     return 0; 
   }
   else
