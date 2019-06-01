@@ -14,6 +14,7 @@ import (
 	"math/rand"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
@@ -354,6 +355,17 @@ func IsFile(path string) bool {
 	return !fi.Mode().IsDir()
 }
 
+func IsDir(path string) bool {
+	log.Debug("IsDir | Verifying if ", path, " is a directory")
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		log.Error("IsDir | Path [", path, "] does not exist")
+		return false
+	}
+	log.Debug("IsDir | Path ", path, " isDir? -> ", info.IsDir())
+	return info.IsDir()
+}
+
 /* Remove a given element from a string*/
 func RemoveFromString(s []byte, i int) []byte {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
@@ -610,4 +622,23 @@ func RemoveWhiteSpaceString(str string) string {
 		}
 	}
 	return b.String()
+}
+
+func VerifyCert(filePath, pub, priv string) bool {
+	log.Debug("VerifyCert | Pub: ", pub, " | Priv: ", priv, " | Path: ", filePath)
+
+	if IsDir(filePath) {
+		if !IsFile(path.Join(filePath, pub)) {
+			log.Error("VerifyCert | Pub [", path.Join(filePath, pub), "] does not exist ...")
+			return false
+		}
+		if !IsFile(path.Join(filePath, priv)) {
+			log.Error("VerifyCert | Priv [", path.Join(filePath, priv), "] does not exist ...")
+			return false
+		}
+		return true
+	}
+	log.Error("VerifyCert | SSL Directory [", filePath, "] does not exist ...")
+	return false
+
 }
