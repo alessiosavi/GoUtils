@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "cutils.h"
+#include <ctype.h>
 
 /* This metod is delegated to init the fsize in input with the byte lenght of the given file */
 void set_file_size(FILE *fp, int *fsize)
@@ -58,6 +59,36 @@ void read_content_no_alloc(const char *filename, char *out)
   return ;
 }
 
+// Lower the case of the string in input
+void lowerize_string(char *data){
+  int i = 0; // Don't break c99 :/i
+  for(; data[i]; i++){
+    data[i] = tolower(data[i]);
+  } 
+}
+
+
+int verify_presence_data_insensitive(char *data, const char *to_find)
+{
+  /* Manage None input */
+  if(data != NULL && to_find != NULL){
+
+    // lowering the line
+    lowerize_string(data);
+    /* Finding string ... */
+    if(strstr(data,to_find)!=NULL)
+    {
+      // printf("String %s found ..\n",to_find);
+      return 1;
+    }
+    //printf("String %s NOT found ..\n",to_find);
+    return 0; 
+  }
+  else
+    // Error - input
+    return -1;
+}
+
 
 int verify_presence_data(const char *data, const char *to_find)
 {
@@ -66,13 +97,14 @@ int verify_presence_data(const char *data, const char *to_find)
     /* Finding string ... */
     if(strstr(data,to_find)!=NULL)
     {
-     // printf("String %s found ..\n",to_find);
+      // printf("String %s found ..\n",to_find);
       return 1;
     }
     //printf("String %s NOT found ..\n",to_find);
     return 0; 
   }
   else
+    // Error - input
     return -1;
 }
 
@@ -94,7 +126,7 @@ int verify_presence_filename(const char *filename, const char *to_find)
 }
 
 /*int main(int argc, char **argv)
-{
+  {
   char *content;
   printf("%ld",get_file_size("/tmp/test1"));
   content = read_content("filename.txt");
@@ -102,4 +134,6 @@ int verify_presence_filename(const char *filename, const char *to_find)
   verify_presence_filename(content,"filename.txt");
   free(content);
   return 0;
-}*/   
+  }*/   
+
+

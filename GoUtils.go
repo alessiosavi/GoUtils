@@ -24,6 +24,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/valyala/fasthttp"
+
 	"github.com/pierrec/lz4"
 	log "github.com/sirupsen/logrus" // Pretty log library, not the fastest (zerolog/zap)
 	"github.com/valyala/gozstd"
@@ -61,6 +63,16 @@ func ReadFileContentC(filename string) string {
 
 func CompareData(data, to_find string) bool {
 	ret := C.verify_presence_data(C.CString(data), C.CString(to_find))
+	//log.Error("CompareData | Ret: ", ret)
+	if ret == 1 {
+		return true
+	}
+	return false
+}
+
+// CompareDataInsensitive call the C function delegated to 'lowerize' the string and find the first occurence
+func CompareDataInsensitive(data, to_find_lower string) bool {
+	ret := C.verify_presence_data_insensitive(C.CString(data), C.CString(to_find_lower))
 	//log.Error("CompareData | Ret: ", ret)
 	if ret == 1 {
 		return true
@@ -641,5 +653,19 @@ func VerifyCert(filePath, pub, priv string) bool {
 	}
 	log.Error("VerifyCert | SSL Directory [", filePath, "] does not exist ...")
 	return false
+
+}
+
+// SecureRequest is delegate to set the necessary secure headers
+// NOTE: CORS is set to '*', be sure to rewrite the headers when expose the application
+func SecureRequest(ctx *fasthttp.RequestCtx, ssl bool) {
+	ctx.Response.Header.Set("X-Frame-Options", "DENY")
+	ctx.Response.Header.Set("X-Content-Type-Options", "nosniff")
+	ctx.Response.Header.Set("X-XSS-Protection", "1; mode=block")
+	ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
+	if ssl {
+		ctx.Response.Header.Set("Content-Security-Policy", "upgrade-insecure-requests")
+		ctx.Response.Header.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+	}
 
 }
