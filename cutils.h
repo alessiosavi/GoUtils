@@ -17,4 +17,12 @@ int verify_presence_filename(const char *filename, const char *to_find);
 /* Set the the file size in byte into the fsize pointer in input */
 void set_file_size(FILE *fp, int *fsize);
 
+/* Lowerize the given string */
+void lowerize_string(char *data);
+
+
+/* Lowerize the input 'data' and verify if 'to_find' is present */
+int verify_presence_data_insensitive(char *data, const char *to_find);
+
+
 #endif
