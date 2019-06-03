@@ -80,7 +80,7 @@ func Random(min int, max int) int {
 func IsDirectory(path string) bool {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		log.Error("IsDirectory | Some error occours! | Path ", path, " IS NOT A DIRECTORY :/")
+		log.Error("IsDirectory | Some error occours! | Path ", path, " IS NOT A DIRECTORY :/ | ERR: ", err)
 		return false
 	}
 	return fileInfo.IsDir()
@@ -221,7 +221,7 @@ func FilterFromFileCompress(filename string, maxLinesToSearch int, toFilter stri
 	cmd := exec.Command("/bin/sh", "-c", app)
 	stdout, err := cmd.Output()
 	if err != nil { // No file found
-		log.Warn("FilterFromFile | No text found [", toFilter, "] in file [", filename, "]")
+		log.Warn("FilterFromFile | No text found [", toFilter, "] in file [", filename, "] | Err: ", err)
 		return gozstd.Compress(nil, []byte("No text found :("))
 	}
 	log.Trace("FilterFromFile | STOP | Ok, compressing the data ...")
@@ -256,7 +256,7 @@ func GetFileModification(filepath string) int64 {
 	defer f.Close()
 	statinfo, err := f.Stat()
 	if err != nil {
-		log.Error("Error getting stats of file -> :/", filepath)
+		log.Error("Error getting stats of file -> :/", filepath, " | ERR: ", err)
 		//f.Close()
 		return -1
 	}
@@ -270,12 +270,13 @@ func CountLine(filename string) int {
 	cmd := exec.Command("/bin/sh", "-c", app)
 	stdout, err := cmd.Output()
 	if err != nil { // File deleted ?
-		log.Error(err.Error() + ": " + string(stdout))
+		log.Error("CountLine | Error retrieving number of lines of file [", filename, "] | ERR: ", err)
+		log.Error("STDOOUT: " + string(stdout))
 		return -1
 	}
 	n, err := strconv.Atoi(strings.Split(string(stdout), " ")[0]) //Extract files number
 	if err != nil {
-		log.Error(err)
+		log.Error("CountLine | Error casting string to number [", filename, "] | ERR: ", err)
 		return -1
 	}
 	return n
@@ -381,7 +382,7 @@ func ReadAllFileInArray(filePath string) []string {
 	log.Trace("ReadAllFile | START")
 	file, err = os.Open(filePath)
 	if err != nil {
-		log.Error("ReadAllFile | Error opening file [", filePath, "]")
+		log.Error("ReadAllFile | Error opening file [", filePath, "] | Err: ", err)
 		return nil
 	}
 	defer file.Close()
@@ -392,7 +393,7 @@ func ReadAllFileInArray(filePath string) []string {
 		linesList = append(linesList, strings.Replace(strings.TrimSpace(scanner.Text()), "  ", "", -1))
 	}
 	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
+		log.Fatal("Error opening file ", filePath, " | ERR: ", err)
 	}
 	return linesList
 }
@@ -407,7 +408,7 @@ func ReadAllFile(filePath string) string {
 	log.Trace("ReadAllFile | START")
 	file, err = os.Open(filePath)
 	if err != nil {
-		log.Error("ReadAllFile | Error opening file [", filePath, "]")
+		log.Error("ReadAllFile | Error OPENING file [", filePath, "] | Err: ", err)
 		return ""
 	}
 	defer file.Close()
@@ -417,7 +418,7 @@ func ReadAllFile(filePath string) string {
 	reader = bufio.NewReader(file)
 	content, err = ioutil.ReadAll(reader)
 	if err != nil {
-		log.Error("ReadAllFile | Error reading file [", filePath, "]")
+		log.Error("ReadAllFile | Error READING file [", filePath, "] | Err: ", err)
 		return ""
 	}
 	log.Trace("ReadAllFile | STOP")
@@ -564,7 +565,7 @@ func VerifyIfPresent(content string, entryList []string) bool {
 func StartCPUProfiler(file *os.File) {
 	// Start the cpu profiler
 	if err := pprof.StartCPUProfile(file); err != nil {
-		log.Fatal("could not start CPU profile: ", err)
+		log.Fatal("Could not start CPU profile: ", err)
 	}
 }
 
