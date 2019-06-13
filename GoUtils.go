@@ -261,18 +261,36 @@ func FilterFromFile(filename string, maxLinesToSearch int, toFilter string, reve
 func GetFileModification(filepath string) int64 {
 	f, err := os.Open(filepath)
 	if err != nil {
-		log.Error("No file :/", filepath, " | Err: ", err)
-		//f.Close()
+		log.Error("GetFileModification | No file :/", filepath, " | Err: ", err)
 		return -1
 	}
 	defer f.Close()
 	statinfo, err := f.Stat()
 	if err != nil {
-		log.Error("Error getting stats of file -> :/", filepath, " | ERR: ", err)
-		//f.Close()
+		log.Error("GetFileModification | Error getting stats of file -> :/", filepath, " | ERR: ", err)
 		return -1
 	}
 	return statinfo.ModTime().Unix()
+}
+
+// GetFileDate is delegated to return the date in a string format in which the file was (latest) modified
+func GetFileDate(filepath string) string {
+	unix_timestamp := GetFileModification(filepath)
+	if unix_timestamp != -1 {
+		log.Debug("GetFileDate | Timestamp [", unix_timestamp, "] retrieved! | Going to convert to human date format ...")
+		loc, err := time.LoadLocation("Europe/Rome")
+		if err != nil {
+			log.Fatal("GetFileDate | Error reading modification time in file [", filepath, "]")
+			return ""
+		}
+		current_time := time.Unix(unix_timestamp, 0).In(loc)
+		date := current_time.Format("2006-01-02 15:04:05")
+		log.Debug("GetFileDate | Date converted!! -> ", date)
+		return date
+	}
+	log.Error("GetFileDate | Error while reading the file :/")
+
+	return ""
 
 }
 
