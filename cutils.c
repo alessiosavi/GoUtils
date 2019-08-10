@@ -43,7 +43,7 @@ char *read_content(const char *filename) {
 }
 
 /* Read the file and return the content */
-void read_content_no_alloc(const char *filename, char *out) {
+void read_content_no_alloc(char *filename, char *out) {
   int fsize = 0;
   FILE *fp;
   fp = fopen(filename, "r");
@@ -52,6 +52,7 @@ void read_content_no_alloc(const char *filename, char *out) {
     fread(out, 1, fsize, fp);
     fclose(fp);
   }
+  free(filename);
   return;
 }
 
@@ -114,6 +115,28 @@ int verify_presence_filename(const char *filename, const char *to_find) {
 
   printf("Seems that the filename or the string to find is NULL :/ ...");
   return -1;
+}
+
+// C helper functions:
+
+static char **makeCharArray(int size) { return calloc(sizeof(char *), size); }
+
+static void setArrayString(char **a, char *s, int n) { a[n] = s; }
+
+static void freeCharArray(char **a, int size) {
+  int i;
+  for (i = 0; i < size; i++)
+    free(a[i]);
+  free(a);
+}
+
+static void printCharArray(char **a, int size) {
+  int i;
+  printf("\nprintCharArray | START | Lenght: %d", size);
+  for (i = 0; i < size; i++)
+    printf("\n%d) %s", i, (a[i]));
+  printf("\nprintCharArray | STOP\n");
+  return;
 }
 
 /*int main(int argc, char **argv)

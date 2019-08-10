@@ -34,6 +34,7 @@ import (
 /* ==== C wrappers ==== */
 
 // C methods for speedup the code
+
 // GetFileSizeC wrapper method for retrieve byte lenght of a file
 func GetFileSizeC(filename string) int64 {
 	// Cast a string to a 'C string'
@@ -46,7 +47,6 @@ func GetFileSizeC(filename string) int64 {
 
 // ReadFileContentC wrapper method for retrieve content by a file
 func ReadFileContentC(filename string) string {
-
 	// Cast a string to a 'C string'
 	fname := C.CString(filename)
 	// recognize the size of the file
@@ -54,6 +54,7 @@ func ReadFileContentC(filename string) string {
 	// Allocate the string for the result
 	ptr := C.malloc(C.sizeof_char * C.ulong(fsize))
 	defer C.free(unsafe.Pointer(ptr))
+	//defer C.free(unsafe.Pointer(fname))
 	// Cast the pointer in order to suit the method signature
 	C.read_content_no_alloc(fname, (*C.char)(ptr))
 	// Cast the fsize to int
@@ -64,20 +65,15 @@ func ReadFileContentC(filename string) string {
 func CompareData(data, to_find string) bool {
 	ret := C.verify_presence_data(C.CString(data), C.CString(to_find))
 	//log.Error("CompareData | Ret: ", ret)
-	if ret == 1 {
-		return true
-	}
-	return false
+	return ret == 1
+
 }
 
 // CompareDataInsensitive call the C function delegated to 'lowerize' the string and find the first occurence
 func CompareDataInsensitive(data, to_find_lower string) bool {
 	ret := C.verify_presence_data_insensitive(C.CString(data), C.CString(to_find_lower))
 	//log.Error("CompareData | Ret: ", ret)
-	if ret == 1 {
-		return true
-	}
-	return false
+	return ret == 1
 }
 
 /* ==== C wrappers ==== */
@@ -261,13 +257,13 @@ func FilterFromFile(filename string, maxLinesToSearch int, toFilter string, reve
 func GetFileModification(filepath string) int64 {
 	f, err := os.Open(filepath)
 	if err != nil {
-		log.Error("GetFileModification | No file :/", filepath, " | Err: ", err)
+		log.Error("GetFileModification | Error on [", filepath, "] | Err: ", err)
 		return -1
 	}
 	defer f.Close()
 	statinfo, err := f.Stat()
 	if err != nil {
-		log.Error("GetFileModification | Error getting stats of file -> :/", filepath, " | ERR: ", err)
+		log.Error("GetFileModification | Error getting stats of file -> :/ ", filepath, " | ERR: ", err)
 		return -1
 	}
 	return statinfo.ModTime().Unix()
@@ -403,16 +399,28 @@ func RemoveFromString(s []byte, i int) []byte {
 	return s[:len(s)-1]
 }
 
+// SplitStringInArray is delegated to split the string by the new line
+func SplitStringInArray(data string) []string {
+	var linesList []string
+	scanner := bufio.NewScanner(strings.NewReader(data))
+	for scanner.Scan() {
+		linesList = append(linesList, scanner.Text())
+	}
+	return linesList
+
+}
+
+// ReadAllFileInArray is delegated to read every file lines in a new String array position
 func ReadAllFileInArray(filePath string) []string {
 	// Open a file.
 	var file *os.File // File to read
 	var err error
 	var linesList []string
 	//var result string
-	log.Trace("ReadAllFile | START")
+	log.Trace("ReadAllFileInArray | START")
 	file, err = os.Open(filePath)
 	if err != nil {
-		log.Error("ReadAllFile | Error opening file [", filePath, "] | Err: ", err)
+		log.Error("ReadAllFileInArray | Error opening file [", filePath, "] | Err: ", err)
 		return nil
 	}
 	defer file.Close()
@@ -423,11 +431,12 @@ func ReadAllFileInArray(filePath string) []string {
 		linesList = append(linesList, strings.Replace(strings.TrimSpace(scanner.Text()), "  ", "", -1))
 	}
 	if err := scanner.Err(); err != nil {
-		log.Fatal("Error opening file ", filePath, " | ERR: ", err)
+		log.Fatal("ReadAllFileInArray | Error opening file ", filePath, " | ERR: ", err)
 	}
 	return linesList
 }
 
+// ReadAllFile is delegated to read and return all the content of the give file
 func ReadAllFile(filePath string) string {
 	// Open a file.
 	var file *os.File // File to read
@@ -547,6 +556,20 @@ func ParseDate2(strdate string) int64 {
 	return time.Date(year, time.Month(month), day, hour, minute, second, milli*1000000, time.UTC).UnixNano() / 1000000
 }
 
+// RemoveWhiteSpaceString is delegated to remove the whitespace from the given string
+func RemoveWhiteSpaceString(str string) string {
+	var b strings.Builder
+	b.Grow(len(str))
+	for i, ch := range str {
+		//fmt.Println("I: ", i)
+		if !(str[i] == 32 && (i+1 < len(str) && str[i+1] == 32)) {
+			b.WriteRune(ch)
+		}
+	}
+	return b.String()
+}
+
+// RemoveWhiteSpaceArray is delegated to iterate every array row and remove the whitespace from the given string
 func RemoveWhiteSpaceArray(data []string) []string {
 	var toDelete []int
 	// Iterate the string in the list
@@ -617,7 +640,7 @@ func ExtractString(data *string, first, last string) string {
 	return ""
 }
 
-// recognizeFormat is delegated to valutate the extension and return the properly Mimetype by a given format type
+// RecognizeFormat is delegated to valutate the extension and return the properly Mimetype by a given format type
 // reurn: (Mimetype http compliant,Content-Disposition header value)
 func RecognizeFormat(input string) (string, string) {
 	// Find the last occurrence of the dot
@@ -641,18 +664,6 @@ func RecognizeFormat(input string) (string, string) {
 		contentDisposition = `inline; filename="` + input + `"`
 	}
 	return mimeType, contentDisposition
-}
-
-func RemoveWhiteSpaceString(str string) string {
-	var b strings.Builder
-	b.Grow(len(str))
-	for i, ch := range str {
-		//fmt.Println("I: ", i)
-		if !(str[i] == 32 && (i+1 < len(str) && str[i+1] == 32)) {
-			b.WriteRune(ch)
-		}
-	}
-	return b.String()
 }
 
 func VerifyCert(filePath, pub, priv string) bool {
