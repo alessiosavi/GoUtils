@@ -4,7 +4,7 @@
 
 /* Return the content by a given file (using fread)*/
 char *read_content(const char *filename);
-void read_content_no_alloc(const char *filename, char *out);
+void read_content_no_alloc(char *filename, char *out);
 
 long get_file_size(char *filename);
 
