@@ -54,7 +54,7 @@ func ReadFileContentC(filename string) string {
 	// Allocate the string for the result
 	ptr := C.malloc(C.sizeof_char * C.ulong(fsize))
 	defer C.free(unsafe.Pointer(ptr))
-	//defer C.free(unsafe.Pointer(fname))
+
 	// Cast the pointer in order to suit the method signature
 	C.read_content_no_alloc(fname, (*C.char)(ptr))
 	// Cast the fsize to int
@@ -66,7 +66,6 @@ func CompareData(data, to_find string) bool {
 	ret := C.verify_presence_data(C.CString(data), C.CString(to_find))
 	//log.Error("CompareData | Ret: ", ret)
 	return ret == 1
-
 }
 
 // CompareDataInsensitive call the C function delegated to 'lowerize' the string and find the first occurence
@@ -697,4 +696,15 @@ func SecureRequest(ctx *fasthttp.RequestCtx, ssl bool) {
 		ctx.Response.Header.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 	}
 
+}
+
+func SpellCheck(filepath, wrongWord string) string {
+	log.Debug("Reading data from [", filepath, "]")
+	dict_path := C.CString(filepath)
+	wrong_word := C.CString(wrongWord)
+	correct := C.spell_check(dict_path, 102264, wrong_word)
+	str := C.GoString(correct)
+	C.free(unsafe.Pointer(dict_path))
+	C.free(unsafe.Pointer(wrong_word))
+	return str
 }
