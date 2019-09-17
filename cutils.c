@@ -120,9 +120,9 @@ int verify_presence_filename(const char *filename, const char *to_find) {
 
 // C helper functions:
 
-static char **makeCharArray(int size) { return calloc(sizeof(char *), size); }
+char **makeCharArray(int size) { return calloc(sizeof(char *), size); }
 
-static void setArrayString(char **a, char *s, int n) { a[n] = s; }
+void setArrayString(char **a, char *s, int n) { a[n] = s; }
 
 
 size_t levenshtein_n(const char *a, const size_t length, const char *b,
@@ -251,7 +251,7 @@ char *apply_levian_to_array(char **a, char *wrong, int size) {
   return correct;
 }
 
-static void printCharArray(char **a, int size) {
+void printCharArray(char **a, int size) {
   int i;
   printf("\nprintCharArray | START | Lenght: %d", size);
   for (i = 0; i < size; i++) {
