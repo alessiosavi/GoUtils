@@ -1,0 +1,2 @@
+# GoUtils
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/99cead8a95f44ad39f21ad21f368581e)](https://app.codacy.com/app/alessiosavi95/GoUtils?utm_source=github.com&utm_medium=referral&utm_content=alessiosavi/GoUtils&utm_campaign=Badge_Grade_Dashboard)
