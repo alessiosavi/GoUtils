@@ -200,7 +200,7 @@ func ReadFilePath(path string) []string {
 	return fileList
 }
 
-// FilterFromFile return the text that containt "toFilter" from the file "filename" in a zipped format
+// FilterFromFileCompress return the text that containt "toFilter" from the file "filename" in a zipped format
 func FilterFromFileCompress(filename string, maxLinesToSearch int, toFilter string, reverse bool) []byte {
 	log.Trace("FilterFromFileCompress | START")
 	stdout := FilterFromFile(filename, maxLinesToSearch, toFilter, reverse)
@@ -243,16 +243,16 @@ func GetFileModification(filepath string) int64 {
 
 // GetFileDate is delegated to return the date in a string format in which the file was (latest) modified
 func GetFileDate(filepath string) string {
-	unix_timestamp := GetFileModification(filepath)
-	if unix_timestamp != -1 {
-		log.Debug("GetFileDate | Timestamp [", unix_timestamp, "] retrieved! | Going to convert to human date format ...")
+	unixTimestamp := GetFileModification(filepath)
+	if unixTimestamp != -1 {
+		log.Debug("GetFileDate | Timestamp [", unixTimestamp, "] retrieved! | Going to convert to human date format ...")
 		loc, err := time.LoadLocation("Europe/Rome")
 		if err != nil {
 			log.Fatal("GetFileDate | Error reading modification time in file [", filepath, "]")
 			return ""
 		}
-		current_time := time.Unix(unix_timestamp, 0).In(loc)
-		date := current_time.Format("2006-01-02 15:04:05")
+		currentTime := time.Unix(unixTimestamp, 0).In(loc)
+		date := currentTime.Format("2006-01-02 15:04:05")
 		log.Debug("GetFileDate | Date converted!! -> ", date)
 		return date
 	}
@@ -364,7 +364,7 @@ func IsDir(path string) bool {
 	return info.IsDir()
 }
 
-/* Remove a given element from a string*/
+/* RemoveFromString Remove a given element from a string*/
 func RemoveFromString(s []byte, i int) []byte {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
 	return s[:len(s)-1]
@@ -654,7 +654,7 @@ func VerifyCert(filePath, pub, priv string) bool {
 	return false
 }
 
-// VerifyFileExists is delegated to verify that the given list of file exist in the directory
+// VerifyFilesExists is delegated to verify that the given list of file exist in the directory
 func VerifyFilesExists(filePath string, files []string) bool {
 	log.Debug("VerifyFileExists | Path: ", filePath)
 	if IsDir(filePath) {
@@ -685,19 +685,19 @@ func SecureRequest(ctx *fasthttp.RequestCtx, ssl bool) {
 
 }
 
-func SpellCheck(filepath, wrongWord string) string {
+func SpellCheck(filepath, wrongword string) string {
 	log.Debug("Reading data from [", filepath, "]")
 	dict_path := C.CString(filepath)
-	wrong_word := C.CString(wrongWord)
-	correct := C.spell_check(dict_path, 102264, wrong_word)
+	wrongWord := C.CString(wrongword)
+	correct := C.spell_check(dict_path, 102264, wrongWord)
 	str := C.GoString(correct)
 	C.free(unsafe.Pointer(dict_path))
-	C.free(unsafe.Pointer(wrong_word))
+	C.free(unsafe.Pointer(wrongWord))
 	return str
 }
 
-// CreateJson is delegated to create a json object for the key pair in input
-func CreateJson(values ...string) string {
+// CreateJSON is delegated to create a json object for the key pair in input
+func CreateJSON(values ...string) string {
 	json := `{`
 	lenght := len(values)
 	if lenght%2 != 0 {
