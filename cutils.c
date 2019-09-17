@@ -152,11 +152,12 @@ size_t levenshtein_n(const char *a, const size_t length, const char *b,
     cache[index] = index + 1;
     ++index;
   }
-  size_t distance;
-  char code;
+ 
 
   // Loop.
   while (bIndex < bLength) {
+    size_t distance;
+    char code;
     code = b[bIndex];
     result = distance = bIndex++;
     index = SIZE_MAX;
