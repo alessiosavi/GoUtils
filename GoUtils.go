@@ -31,6 +31,21 @@ import (
 	"github.com/valyala/gozstd"
 )
 
+//Monitor is the data structure for store the metrics data
+type Monitor struct {
+	Alloc,
+	TotalAlloc,
+	Sys,
+	Mallocs,
+	Frees,
+	LiveObjects,
+	PauseTotalNs,
+	MCacheInuse uint64
+	GCCPUFraction float64
+	NumGC         uint32
+	NumGoroutine  int
+}
+
 /* ==== C wrappers ==== */
 
 // C methods for speedup the code
@@ -83,16 +98,6 @@ func Random(min int, max int) int {
 	return rand.Intn(max-min) + min
 }
 
-// IsDirectory Verify if the path provided is a directory
-func IsDirectory(path string) bool {
-	fileInfo, err := os.Stat(path)
-	if err != nil {
-		log.Error("IsDirectory | Some error occours! | Path ", path, " IS NOT A DIRECTORY :/ | ERR: ", err)
-		return false
-	}
-	return fileInfo.IsDir()
-}
-
 // FreeSystemMemory Call the garbage collector every "gcSleep" minutes
 func FreeSystemMemory(gcSleep *int) {
 	time.Sleep(1 * time.Minute) // Just relax and load the data
@@ -105,21 +110,6 @@ func FreeSystemMemory(gcSleep *int) {
 		log.Info(printMemUsage(&m, &g)) */
 		time.Sleep(time.Duration(*gcSleep) * time.Minute)
 	}
-}
-
-//Monitor is the data structure for store the metrics data
-type Monitor struct {
-	Alloc,
-	TotalAlloc,
-	Sys,
-	Mallocs,
-	Frees,
-	LiveObjects,
-	PauseTotalNs,
-	MCacheInuse uint64
-	GCCPUFraction float64
-	NumGC         uint32
-	NumGoroutine  int
 }
 
 // ExportMetrics  is in charge to retrive the information related to the resources used
@@ -190,49 +180,32 @@ func ReadFile(filename string, lines int) []byte {
 
 // ReadFilePath is delegated to filter every (sub)file path from a given directory
 func ReadFilePath(path string) []string {
-	if !ValidateInjection(path, nil) {
-		log.Error("readFilePath | Path is not valid :/ ", path)
-		return nil
-	}
 	fileList := []string{}
 	// Read all the file recursivly
-	log.Debug("readFilePath | Reading file in ", path)
+	log.Debug("ReadFilePath | Reading file in ", path)
 	err := filepath.Walk(path, func(file string, f os.FileInfo, err error) error {
 		if IsFile(file) {
-			log.Trace("Adding file -> ", file)
+			log.Trace("ReadFilePath | Adding file -> ", file)
 			fileList = append(fileList, file)
 		} else {
-			log.Debug("readFilePath | Directory found, skipping! -> ", file)
+			log.Debug("ReadFilePath | Directory found, skipping! -> ", file)
 		}
 		return nil
 	})
 	if err != nil {
-		log.Error("readFilePath | Some trouble | Path: ", path, " | ERR: ", err)
+		log.Error("ReadFilePath | Some trouble | Path: ", path, " | ERR: ", err)
 		return nil
 	}
-	log.Warn("readFilePath | [", len(fileList), "] File readed: ", fileList)
+	log.Warn("ReadFilePath | [", len(fileList), "] File readed: ", fileList)
 	return fileList
 }
 
 // FilterFromFile return the text that containt "toFilter" from the file "filename" in a zipped format
 func FilterFromFileCompress(filename string, maxLinesToSearch int, toFilter string, reverse bool) []byte {
-	log.Trace("FilterFromFile | START")
-	//
-	toFilter = strings.Replace(toFilter, "\"", "\\\"", -1) // Replace the ' " ' in a "grep compliant" format
-
-	app := "tail -n " + strconv.Itoa(maxLinesToSearch) + "  " + filename + "|egrep -i \"" + toFilter + "\""
-	if reverse { // if the reverse enable add -v for the reverse search
-		app += " -v"
-	}
-
-	cmd := exec.Command("/bin/sh", "-c", app)
-	stdout, err := cmd.Output()
-	if err != nil { // No file found
-		log.Warn("FilterFromFile | No text found [", toFilter, "] in file [", filename, "] | Err: ", err)
-		return gozstd.Compress(nil, []byte("No text found :("))
-	}
-	log.Trace("FilterFromFile | STOP | Ok, compressing the data ...")
-	return gozstd.Compress(nil, stdout)
+	log.Trace("FilterFromFileCompress | START")
+	stdout := FilterFromFile(filename, maxLinesToSearch, toFilter, reverse)
+	log.Debug("FilterFromFileCompress | STOP | Ok, compressing the data ...", stdout)
+	return gozstd.Compress(nil, []byte(stdout))
 }
 
 // FilterFromFile return the text that containt "toFilter" from the file "filename" in a zipped format
@@ -309,7 +282,6 @@ func CountLine(filename string) int {
 
 // ValidateInjection provide commons methods for validate a given payload
 func ValidateInjection(payload string, mustContain []string) bool {
-
 	if len(payload) <= 4 {
 		log.Debug("ValidateInjection | payload empty")
 		return false
@@ -406,10 +378,9 @@ func SplitStringInArray(data string) []string {
 		linesList = append(linesList, scanner.Text())
 	}
 	return linesList
-
 }
 
-// ReadAllFileInArray is delegated to read every file lines in a new String array position
+// ReadAllFileInArray is delegated to read the file content as tokenize the data by the new line
 func ReadAllFileInArray(filePath string) []string {
 	// Open a file.
 	var file *os.File // File to read
@@ -435,7 +406,7 @@ func ReadAllFileInArray(filePath string) []string {
 	return linesList
 }
 
-// ReadAllFile is delegated to read and return all the content of the give file
+// ReadAllFile is delegated to read and return all the content of the given file
 func ReadAllFile(filePath string) string {
 	// Open a file.
 	var file *os.File // File to read
@@ -543,7 +514,7 @@ func RetrieveLines(fileContet string) int {
 	return counter
 }
 
-// ParseDate2 is an hardcoded parser for date like 31/01/2019 13:29:37,932. He reurn the nanoseceond since Unix epoch
+// ParseDate2 is an hardcoded parser for date like 31/01/2019 13:29:37,932. Than, return the nanoseceond since Unix epoch
 func ParseDate2(strdate string) int64 {
 	day, _ := strconv.Atoi(strdate[:2])
 	month, _ := strconv.Atoi(strdate[3:5])
@@ -665,9 +636,9 @@ func RecognizeFormat(input string) (string, string) {
 	return mimeType, contentDisposition
 }
 
+// VerifyCert is delegated to verify that the given public and private cert exist in the filepath
 func VerifyCert(filePath, pub, priv string) bool {
 	log.Debug("VerifyCert | Pub: ", pub, " | Priv: ", priv, " | Path: ", filePath)
-
 	if IsDir(filePath) {
 		if !IsFile(path.Join(filePath, pub)) {
 			log.Error("VerifyCert | Pub [", path.Join(filePath, pub), "] does not exist ...")
@@ -681,7 +652,23 @@ func VerifyCert(filePath, pub, priv string) bool {
 	}
 	log.Error("VerifyCert | SSL Directory [", filePath, "] does not exist ...")
 	return false
+}
 
+// VerifyFileExists is delegated to verify that the given list of file exist in the directory
+func VerifyFilesExists(filePath string, files []string) bool {
+	log.Debug("VerifyFileExists | Path: ", filePath)
+	if IsDir(filePath) {
+		for i := range files {
+			filename := path.Join(filePath, files[i])
+			if !IsFile(filename) {
+				log.Error("VerifyFileExists | Pub [", filename, "] does not exist ...")
+				return false
+			}
+		}
+		return true
+	}
+	log.Error("VerifyFileExists | SSL Directory [", filePath, "] does not exist ...")
+	return false
 }
 
 // SecureRequest is delegate to set the necessary secure headers
@@ -707,4 +694,21 @@ func SpellCheck(filepath, wrongWord string) string {
 	C.free(unsafe.Pointer(dict_path))
 	C.free(unsafe.Pointer(wrong_word))
 	return str
+}
+
+// CreateJson is delegated to create a json object for the key pair in input
+func CreateJson(values ...string) string {
+	json := `{`
+	lenght := len(values)
+	if lenght%2 != 0 {
+		log.Error("CreateJson | Call the method using key pair value as list")
+		return ""
+	}
+	for i := 0; i < lenght; i += 2 {
+		json = Join(json, `"`, values[i], `":"`, values[i+1], `",`)
+	}
+	json = strings.TrimSuffix(json, `,`)
+	json += `}`
+	log.Debug("CreateJson | Json: ", json)
+	return json
 }
