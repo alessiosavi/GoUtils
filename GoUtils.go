@@ -10,7 +10,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -383,30 +382,13 @@ func SplitStringInArray(data string) []string {
 
 // ReadAllFileInArray is delegated to read the file content as tokenize the data by the new line
 func ReadAllFileInArray(filePath string) []string {
-	// Open a file.
-	var file *os.File // File to read
-	var err error
-	var linesList []string
-	//var result string
-	log.Trace("ReadAllFileInArray | START")
-	file, err = os.Open(filePath)
+	log.Debug("ReadAllFileInArray | Reading file and splitting in lines")
+	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		log.Error("ReadAllFileInArray | Error opening file [", filePath, "] | Err: ", err)
+		log.Error("ReadAllFileInArray | Error during reading of file ", filePath, " | Err: ", err)
 		return nil
 	}
-	defer file.Close()
-
-	reader := bufio.NewReader(file)
-	for {
-		rawByte, _, err := reader.ReadLine()
-		if err == io.EOF {
-			log.Debug("ReadAllFileInArray | Read all file!")
-			break
-		}
-		line := string(rawByte)
-		linesList = append(linesList, strings.Replace(strings.TrimSpace(line), "  ", "", -1))
-	}
-	return linesList
+	return strings.Split(string(data), "\n")
 }
 
 // ReadAllFile is delegated to read and return all the content of the given file
