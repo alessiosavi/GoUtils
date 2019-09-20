@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -364,7 +365,7 @@ func IsDir(path string) bool {
 	return info.IsDir()
 }
 
-/* RemoveFromString Remove a given element from a string*/
+// RemoveFromString Remove a given element from a string
 func RemoveFromString(s []byte, i int) []byte {
 	s[len(s)-1], s[i] = s[i], s[len(s)-1]
 	return s[:len(s)-1]
@@ -395,13 +396,15 @@ func ReadAllFileInArray(filePath string) []string {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		// Clean the string and remove the double space
-		linesList = append(linesList, strings.Replace(strings.TrimSpace(scanner.Text()), "  ", "", -1))
-	}
-	if err := scanner.Err(); err != nil {
-		log.Fatal("ReadAllFileInArray | Error opening file ", filePath, " | ERR: ", err)
+	reader := bufio.NewReader(file)
+	for {
+		rawByte, _, err := reader.ReadLine()
+		if err == io.EOF {
+			log.Debug("ReadAllFileInArray | Read all file!")
+			break
+		}
+		line := string(rawByte)
+		linesList = append(linesList, strings.Replace(strings.TrimSpace(line), "  ", "", -1))
 	}
 	return linesList
 }
