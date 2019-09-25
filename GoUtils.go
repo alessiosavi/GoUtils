@@ -77,15 +77,16 @@ func ReadFileContentC(filename string) string {
 	return string(b)
 }
 
-func CompareData(data, to_find string) bool {
-	ret := C.verify_presence_data(C.CString(data), C.CString(to_find))
+// CompareData is Golang wrapper for the C method delegated to verify if the given target is present in the data
+func CompareData(data, toFind string) bool {
+	ret := C.verify_presence_data(C.CString(data), C.CString(toFind))
 	//log.Error("CompareData | Ret: ", ret)
 	return ret == 1
 }
 
 // CompareDataInsensitive call the C function delegated to 'lowerize' the string and find the first occurence
-func CompareDataInsensitive(data, to_find_lower string) bool {
-	ret := C.verify_presence_data_insensitive(C.CString(data), C.CString(to_find_lower))
+func CompareDataInsensitive(data, toFindLower string) bool {
+	ret := C.verify_presence_data_insensitive(C.CString(data), C.CString(toFindLower))
 	//log.Error("CompareData | Ret: ", ret)
 	return ret == 1
 }
@@ -318,6 +319,8 @@ func ValidateInjection(payload string, mustContain []string) bool {
 	return true
 }
 
+// Lz4CompressData is delegated to compress the input string data using the lz4 algorithm.
+// It return the compressed data itself and the lenght of the compressed data.
 func Lz4CompressData(fileContent string) ([]byte, int) {
 	toCompress := []byte(fileContent)
 	compressed := make([]byte, len(toCompress))
@@ -332,6 +335,7 @@ func Lz4CompressData(fileContent string) ([]byte, int) {
 	return compressed, lenght
 }
 
+// Lz4DecompressData is delegated to extract the previously compressed data
 func Lz4DecompressData(compressedData []byte, l int) {
 	//decompress
 	decompressed := make([]byte, len(compressedData)*3)
@@ -353,6 +357,7 @@ func IsFile(path string) bool {
 	return !fi.Mode().IsDir()
 }
 
+// IsDir is delegated to verify that the given path is a directory
 func IsDir(path string) bool {
 	log.Debug("IsDir | Verifying if ", path, " is a directory")
 	info, err := os.Stat(path)
@@ -670,13 +675,14 @@ func SecureRequest(ctx *fasthttp.RequestCtx, ssl bool) {
 
 }
 
+// SpellCheck is a Go wrapper for the C spell check algorithm
 func SpellCheck(filepath, wrongword string) string {
 	log.Debug("Reading data from [", filepath, "]")
-	dict_path := C.CString(filepath)
+	dictPath := C.CString(filepath)
 	wrongWord := C.CString(wrongword)
-	correct := C.spell_check(dict_path, 102264, wrongWord)
+	correct := C.spell_check(dictPath, 102264, wrongWord)
 	str := C.GoString(correct)
-	C.free(unsafe.Pointer(dict_path))
+	C.free(unsafe.Pointer(dictPath))
 	C.free(unsafe.Pointer(wrongWord))
 	return str
 }
@@ -696,4 +702,16 @@ func CreateJSON(values ...string) string {
 	json += `}`
 	log.Debug("CreateJson | Json: ", json)
 	return json
+}
+
+// IsUpper verify that a string does not contains upper char
+func IsUpper(str string) bool {
+	for i := range str {
+		ascii := int(str[i])
+		if ascii < 91 && ascii > 64 {
+			return false
+		}
+	}
+	return true
+
 }
