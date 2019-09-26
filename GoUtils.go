@@ -348,9 +348,14 @@ func Lz4DecompressData(compressedData []byte, l int) {
 
 //IsFile verify if a give filepath is a directory
 func IsFile(path string) bool {
+	
 	fi, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		log.Error("IsFile | File ",path,": No such file or directory!")
+        return false
+    }
 	if err != nil {
-		log.Error("isDir | Fatal on path ", path, " | ERR: ", err)
+		log.Error("IsFile | Fatal on path ", path, " | ERR: ", err)
 		return false
 	}
 	// fi.IsDir()
