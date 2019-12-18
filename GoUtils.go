@@ -60,6 +60,19 @@ func GetFileSizeC(filename string) int64 {
 	return int64(size)
 }
 
+// SpellCheck is a Go wrapper for the C spell check algorithm
+func SpellCheck(filepath, wrongword string) string {
+	log.Debug("Reading data from [", filepath, "]")
+	dictPath := C.CString(filepath)
+	wrongWord := C.CString(wrongword)
+	correct := C.spell_check(dictPath, 102264, wrongWord)
+	str := C.GoString(correct)
+	C.free(unsafe.Pointer(dictPath))
+	C.free(unsafe.Pointer(wrongWord))
+	return str
+}
+
+
 // ReadFileContentC wrapper method for retrieve content by a file
 func ReadFileContentC(filename string) string {
 	// Cast a string to a 'C string'
@@ -612,7 +625,6 @@ func RecognizeFormat(input string) (string, string) {
 	// extract only the extension of the file by slicing the string
 	var contentDisposition string
 	var mimeType string
-
 	contentDisposition = `inline; filename="` + input + `"`
 	switch input[strings.LastIndex(input, ".")+1:] {
 	case "doc":
@@ -680,18 +692,6 @@ func SecureRequest(ctx *fasthttp.RequestCtx, ssl bool) {
 
 }
 
-// SpellCheck is a Go wrapper for the C spell check algorithm
-func SpellCheck(filepath, wrongword string) string {
-	log.Debug("Reading data from [", filepath, "]")
-	dictPath := C.CString(filepath)
-	wrongWord := C.CString(wrongword)
-	correct := C.spell_check(dictPath, 102264, wrongWord)
-	str := C.GoString(correct)
-	C.free(unsafe.Pointer(dictPath))
-	C.free(unsafe.Pointer(wrongWord))
-	return str
-}
-
 // CreateJSON is delegated to create a json object for the key pair in input
 func CreateJSON(values ...string) string {
 	json := `{`
@@ -719,4 +719,16 @@ func IsUpper(str string) bool {
 	}
 	return true
 
+}
+
+// ContainsLetter verity that the given string contains, at least, an ASCII character
+func ContainsLetter(str string) bool {
+	for _, charVariable := range str {
+		if (charVariable >= 'a' && charVariable <= 'z') || (charVariable >= 'A' && charVariable <= 'Z') {
+			log.Debug("CheckStringAlphabet | String -> ", str, ` CONTAINS letter!`)
+			return true
+		}
+	}
+	log.Debug("CheckStringAlphabet | String -> ", str, ` does NOT contains letter!`)
+	return false
 }
